@@ -1,15 +1,15 @@
 # Title
 
-## ITEM-ID
+## BOX-ID
 
 <!-- Optional image:
-![Item image](images/example.jpg)
+![Box image](images/example.jpg)
 -->
 
 Description goes here.
 
 ### Type
-ITEM
+BOX
 
 ### Owner
 KIWITT
@@ -22,6 +22,9 @@ Unknown
 
 ### Status
 ACTIVE
+
+### Contents
+Freeform contents go here.
 
 ### Notes
 Optional notes.
