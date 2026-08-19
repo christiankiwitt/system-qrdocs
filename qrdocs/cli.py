@@ -1,4 +1,7 @@
 import argparse
+import os
+import shlex
+import subprocess
 from pathlib import Path
 
 from qrdocs.entries import load_entries, search_entries
@@ -13,11 +16,32 @@ def print_entry(entry):
     title = entry.title or "(untitled)"
     asset_id = entry.asset_id or "(no asset id)"
 
-    print(f"{asset_id} — {title}")
+    print(f"{asset_id} - {title}")
     print(f"Current Location: {location}")
 
 
-def create_entry(data_dir: Path, entry_type: str, asset_id: str, title: str) -> Path:
+def open_in_editor(path: Path) -> None:
+    editor = os.environ.get("EDITOR", "nano")
+    command = shlex.split(editor) + [str(path)]
+    subprocess.run(command, check=True)
+
+
+def find_entry(data_dir: Path, asset_id: str):
+    target = asset_id.casefold()
+
+    for entry in load_entries(data_dir):
+        if entry.asset_id.casefold() == target:
+            return entry
+
+    return None
+
+
+def create_entry(
+    data_dir: Path,
+    entry_type: str,
+    asset_id: str,
+    title: str,
+) -> Path:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     existing_ids = {
@@ -81,8 +105,25 @@ def main():
         "title",
         help="Entry title",
     )
+    new_parser.add_argument(
+        "--no-edit",
+        action="store_true",
+        help="Create the entry without opening it in the editor",
+    )
 
-    subparsers.add_parser("list", help="List documentation entries")
+    edit_parser = subparsers.add_parser(
+        "edit",
+        help="Edit an existing documentation entry",
+    )
+    edit_parser.add_argument(
+        "asset_id",
+        help="Asset ID to edit",
+    )
+
+    subparsers.add_parser(
+        "list",
+        help="List documentation entries",
+    )
 
     search_parser = subparsers.add_parser(
         "search",
@@ -108,6 +149,17 @@ def main():
             parser.error(str(exc))
 
         print(f"Created: {path}")
+
+        if not args.no_edit:
+            open_in_editor(path)
+
+    elif args.command == "edit":
+        entry = find_entry(args.data_dir, args.asset_id)
+
+        if entry is None:
+            parser.error(f"Asset ID not found: {args.asset_id}")
+
+        open_in_editor(entry.path)
 
     elif args.command == "list":
         entries = load_entries(args.data_dir)
