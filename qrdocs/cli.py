@@ -97,7 +97,7 @@ def main():
     rebuild_parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("/var/www/qrdocs-private"),
+        default=Path("/var/www/system-qrdocs/private"),
         help="Private HTML output directory",
     )
 
