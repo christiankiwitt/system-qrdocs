@@ -3,7 +3,11 @@ import os
 import shlex
 import subprocess
 from pathlib import Path
-from qrdocs.public import build_public_asset, public_url_path
+from qrdocs.public import (
+    build_public_asset,
+    public_source_path,
+    public_url_path,
+)
 from qrdocs.entries import load_entries, search_entries
 from qrdocs.build import build_private_site
 from qrdocs.labels import generate_label_pdf
@@ -74,6 +78,46 @@ def create_entry(
     output_path.write_text(text, encoding="utf-8")
     return output_path
 
+def confirm(prompt: str, default: bool = False) -> bool:
+    suffix = " [Y/n]: " if default else " [y/N]: "
+
+    while True:
+        answer = input(prompt + suffix).strip().casefold()
+
+        if not answer:
+            return default
+
+        if answer in {"y", "yes"}:
+            return True
+
+        if answer in {"n", "no"}:
+            return False
+
+        print("Please answer y or n.")
+
+def create_public_source(
+    data_dir: Path,
+    asset_id: str,
+    title: str,
+) -> Path:
+    existing = public_source_path(data_dir, asset_id)
+
+    if existing is not None:
+        return existing
+
+    public_dir = data_dir / "public"
+    public_dir.mkdir(parents=True, exist_ok=True)
+
+    path = public_dir / f"{asset_id}.md"
+
+    text = (
+        f"# {title}\n\n"
+        f"## {asset_id}\n\n"
+        "Public information goes here.\n"
+    )
+
+    path.write_text(text, encoding="utf-8")
+    return path
 
 def main():
     parser = argparse.ArgumentParser(
@@ -201,6 +245,16 @@ def main():
         if not args.no_edit:
             open_in_editor(path)
 
+        if confirm("Create a public page for this entry?", default=False):
+            public_path = create_public_source(
+                data_dir=args.data_dir,
+                asset_id=args.asset_id,
+                title=args.title,
+            )
+
+            print(f"Created public source: {public_path}")
+            open_in_editor(public_path)
+
     elif args.command == "edit":
         entry = find_entry(args.data_dir, args.asset_id)
 
@@ -208,6 +262,27 @@ def main():
             parser.error(f"Asset ID not found: {args.asset_id}")
 
         open_in_editor(entry.path)
+
+        public_path = public_source_path(args.data_dir, args.asset_id)
+
+        if public_path is None:
+            print("Public page: DISABLED")
+
+            if confirm("Create a public page for this entry?", default=False):
+                public_path = create_public_source(
+                    data_dir=args.data_dir,
+                    asset_id=entry.asset_id,
+                    title=entry.title or "(untitled)",
+                )
+
+                print(f"Created public source: {public_path}")
+                open_in_editor(public_path)
+
+        else:
+            print(f"Public page: ENABLED ({public_path})")
+
+            if confirm("Edit the public page too?", default=False):
+                open_in_editor(public_path)
 
     elif args.command == "label":
         entry = find_entry(args.data_dir, args.asset_id)
