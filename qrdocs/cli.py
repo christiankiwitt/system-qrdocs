@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from qrdocs.entries import load_entries, search_entries
+from qrdocs.build import build_private_site
 
 
 DEFAULT_DATA_DIR = Path("/var/lib/system-qrdocs")
@@ -88,6 +89,18 @@ def main():
 
     subparsers = parser.add_subparsers(dest="command")
 
+    rebuild_parser = subparsers.add_parser(
+    "rebuild",
+    help="Build the private HTML documentation site",
+    )
+
+    rebuild_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("/var/www/qrdocs-private"),
+        help="Private HTML output directory",
+    )
+
     new_parser = subparsers.add_parser(
         "new",
         help="Create a new documentation entry",
@@ -160,6 +173,13 @@ def main():
             parser.error(f"Asset ID not found: {args.asset_id}")
 
         open_in_editor(entry.path)
+
+    elif args.command == "rebuild":
+        count = build_private_site(
+            data_dir=args.data_dir,
+            output_dir=args.output_dir,
+        )
+        print(f"Built {count} documentation entries.")
 
     elif args.command == "list":
         entries = load_entries(args.data_dir)
