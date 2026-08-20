@@ -62,11 +62,20 @@ def load_entries(data_dir: Path) -> list[Entry]:
     if not data_dir.exists():
         return []
 
-    return [
-        read_entry(path)
-        for path in sorted(data_dir.rglob("*.md"))
-        if path.is_file()
-    ]
+    entries = []
+
+    for path in sorted(data_dir.rglob("*.md")):
+        if not path.is_file():
+            continue
+
+        relative = path.relative_to(data_dir)
+
+        if relative.parts and relative.parts[0].casefold() == "public":
+            continue
+
+        entries.append(read_entry(path))
+
+    return entries
 
 
 def search_entries(entries: list[Entry], terms: list[str]) -> list[Entry]:
