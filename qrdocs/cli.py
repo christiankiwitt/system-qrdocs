@@ -3,7 +3,7 @@ import os
 import shlex
 import subprocess
 from pathlib import Path
-
+from qrdocs.public import build_public_asset, public_url_path
 from qrdocs.entries import load_entries, search_entries
 from qrdocs.build import build_private_site
 from qrdocs.labels import generate_label_pdf
@@ -153,6 +153,21 @@ def main():
         help="Output PDF path",
     )
 
+    public_parser = subparsers.add_parser(
+        "public",
+        help="Build the public page for an asset",
+    )
+    public_parser.add_argument(
+        "asset_id",
+        help="Asset ID to publish",
+    )
+    public_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("/var/www/system-qrdocs-public"),
+        help="Public HTML output directory",
+    )
+
     subparsers.add_parser(
         "list",
         help="List documentation entries",
@@ -208,6 +223,19 @@ def main():
         )
 
         print(f"Created: {path}")
+
+    elif args.command == "public":
+        try:
+            path = build_public_asset(
+                data_dir=args.data_dir,
+                asset_id=args.asset_id,
+                output_dir=args.output_dir,
+            )
+        except FileNotFoundError as exc:
+            parser.error(str(exc))
+
+        print(f"Built public page: {path}")
+        print(f"Public URL path: {public_url_path(args.data_dir, args.asset_id)}")
 
     elif args.command == "rebuild":
         count = build_private_site(
