@@ -6,6 +6,7 @@ from pathlib import Path
 
 from qrdocs.entries import load_entries, search_entries
 from qrdocs.build import build_private_site
+from qrdocs.labels import generate_label_pdf
 
 
 DEFAULT_DATA_DIR = Path("/var/lib/system-qrdocs")
@@ -90,10 +91,9 @@ def main():
     subparsers = parser.add_subparsers(dest="command")
 
     rebuild_parser = subparsers.add_parser(
-    "rebuild",
-    help="Build the private HTML documentation site",
+        "rebuild",
+        help="Build the private HTML documentation site",
     )
-
     rebuild_parser.add_argument(
         "--output-dir",
         type=Path,
@@ -131,6 +131,26 @@ def main():
     edit_parser.add_argument(
         "asset_id",
         help="Asset ID to edit",
+    )
+
+    label_parser = subparsers.add_parser(
+        "label",
+        help="Generate a printable QR label PDF",
+    )
+    label_parser.add_argument(
+        "asset_id",
+        help="Asset ID to generate a label for",
+    )
+    label_parser.add_argument(
+        "--url",
+        required=True,
+        help="URL encoded in the QR code",
+    )
+    label_parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("label.pdf"),
+        help="Output PDF path",
     )
 
     subparsers.add_parser(
@@ -173,6 +193,21 @@ def main():
             parser.error(f"Asset ID not found: {args.asset_id}")
 
         open_in_editor(entry.path)
+
+    elif args.command == "label":
+        entry = find_entry(args.data_dir, args.asset_id)
+
+        if entry is None:
+            parser.error(f"Asset ID not found: {args.asset_id}")
+
+        path = generate_label_pdf(
+            asset_id=entry.asset_id,
+            title=entry.title or "(untitled)",
+            url=args.url,
+            output_path=args.output,
+        )
+
+        print(f"Created: {path}")
 
     elif args.command == "rebuild":
         count = build_private_site(

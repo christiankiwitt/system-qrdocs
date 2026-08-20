@@ -13,7 +13,10 @@ license-files = ["LICENSE"]
 authors = [
   { name = "Christian Kiwitt" }
 ]
-dependencies = []
+dependencies = [
+  "qrcode[pil]",
+  "reportlab",
+]
 
 [project.scripts]
 qrdocs = "qrdocs.cli:main"
