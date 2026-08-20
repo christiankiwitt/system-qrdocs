@@ -16,6 +16,7 @@ def _render_markdown_basic(text: str) -> str:
     """
     output = []
     paragraph = []
+    in_comment = False
 
     def flush_paragraph():
         if paragraph:
@@ -25,6 +26,19 @@ def _render_markdown_basic(text: str) -> str:
 
     for raw_line in text.splitlines():
         line = raw_line.strip()
+
+        if in_comment:
+            if "-->" in line:
+                in_comment = False
+            continue
+
+        if line.startswith("<!--"):
+            flush_paragraph()
+
+            if "-->" not in line:
+                in_comment = True
+
+            continue
 
         if not line:
             flush_paragraph()
@@ -147,6 +161,7 @@ def build_private_site(data_dir: Path, output_dir: Path) -> int:
 
         try:
             temp_dir.rename(output_dir)
+            output_dir.chmod(0o755)
         except Exception:
             if backup_dir.exists() and not output_dir.exists():
                 backup_dir.rename(output_dir)
