@@ -10,9 +10,11 @@ def _render_markdown_basic(text: str) -> str:
     """
     Minimal Markdown renderer for v0.1 development.
 
-    Supports headings and plain paragraphs. This is intentionally small;
-    richer Markdown/image handling can replace it later without changing
-    the build interface.
+    Supports:
+    - headings
+    - plain paragraphs
+    - simple Markdown images using common web formats:
+      .jpg, .jpeg, .png, .webp, .gif
     """
     output = []
     paragraph = []
@@ -47,15 +49,40 @@ def _render_markdown_basic(text: str) -> str:
         if line.startswith("### "):
             flush_paragraph()
             output.append(f"<h3>{html.escape(line[4:])}</h3>")
+
         elif line.startswith("## "):
             flush_paragraph()
             output.append(f"<h2>{html.escape(line[3:])}</h2>")
+
         elif line.startswith("# "):
             flush_paragraph()
             output.append(f"<h1>{html.escape(line[2:])}</h1>")
-        elif line.startswith("<!--"):
-            # Ignore template comments for now.
-            continue
+
+        elif line.startswith("![") and "](" in line and line.endswith(")"):
+            flush_paragraph()
+
+            alt_end = line.find("](")
+            alt_text = line[2:alt_end]
+            image_path = line[alt_end + 2:-1]
+
+            allowed_extensions = (
+                ".jpg",
+                ".jpeg",
+                ".png",
+                ".webp",
+                ".gif",
+            )
+
+            if image_path.casefold().endswith(allowed_extensions):
+                output.append(
+                    '<img '
+                    f'src="{html.escape(image_path, quote=True)}" '
+                    f'alt="{html.escape(alt_text, quote=True)}" '
+                    'style="max-width: 100%; height: auto;">'
+                )
+            else:
+                output.append(f"<p>{html.escape(line)}</p>")
+
         else:
             paragraph.append(line)
 
@@ -152,6 +179,14 @@ def build_private_site(data_dir: Path, output_dir: Path) -> int:
             _render_index(entries),
             encoding="utf-8",
         )
+
+        images_dir = data_dir / "images"
+
+        if images_dir.exists():
+            shutil.copytree(
+                images_dir,
+                temp_dir / "images",
+            )
 
         if backup_dir.exists():
             shutil.rmtree(backup_dir)

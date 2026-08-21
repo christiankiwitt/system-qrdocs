@@ -122,6 +122,35 @@ def build_public_asset(
         index_path = staging_dir / "index.html"
         index_path.write_text(page, encoding="utf-8")
         index_path.chmod(0o644)
+
+        public_images_dir = data_dir / "public" / "images"
+        allowed_extensions = {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+        }
+
+        if public_images_dir.exists():
+            matching_images = [
+                path
+                for path in public_images_dir.iterdir()
+                if path.is_file()
+                and path.stem.casefold() == asset_id.casefold()
+                and path.suffix.casefold() in allowed_extensions
+            ]
+
+            if matching_images:
+                destination_images_dir = staging_dir / "images"
+                destination_images_dir.mkdir(parents=True, exist_ok=True)
+
+                for image_path in matching_images:
+                    shutil.copy2(
+                        image_path,
+                        destination_images_dir / image_path.name,
+                    )
+
         staging_dir.chmod(0o755)
 
         if backup_dir.exists():
