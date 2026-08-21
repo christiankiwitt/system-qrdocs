@@ -11,6 +11,7 @@ from qrdocs.public import (
 from qrdocs.entries import load_entries, search_entries
 from qrdocs.build import build_private_site
 from qrdocs.labels import generate_label_pdf
+from qrdocs.config import DEFAULT_CONFIG_PATH, get_public_base_url, load_config
 
 
 DEFAULT_DATA_DIR = Path("/var/lib/system-qrdocs")
@@ -187,8 +188,7 @@ def main():
     )
     label_parser.add_argument(
         "--url",
-        required=True,
-        help="URL encoded in the QR code",
+        help="Override the URL encoded in the QR code",
     )
     label_parser.add_argument(
         "--output",
@@ -228,6 +228,8 @@ def main():
     )
 
     args = parser.parse_args()
+    config = load_config(DEFAULT_CONFIG_PATH)
+    public_base_url = get_public_base_url(config)
 
     if args.command == "new":
         try:
@@ -290,14 +292,25 @@ def main():
         if entry is None:
             parser.error(f"Asset ID not found: {args.asset_id}")
 
+        url = args.url
+
+        if not url:
+            if not public_base_url:
+                parser.error(
+                    "No URL supplied and no public.base_url configured."
+                )
+
+            url = f"{public_base_url}{public_url_path(args.data_dir, args.asset_id)}"
+
         path = generate_label_pdf(
             asset_id=entry.asset_id,
             title=entry.title or "(untitled)",
-            url=args.url,
+            url=url,
             output_path=args.output,
         )
 
         print(f"Created: {path}")
+        print(f"QR URL: {url}")
 
     elif args.command == "public":
         try:
@@ -310,7 +323,12 @@ def main():
             parser.error(str(exc))
 
         print(f"Built public page: {path}")
-        print(f"Public URL path: {public_url_path(args.data_dir, args.asset_id)}")
+
+        url_path = public_url_path(args.data_dir, args.asset_id)
+        print(f"Public URL path: {url_path}")
+
+        if public_base_url:
+            print(f"Public URL: {public_base_url}{url_path}")
 
     elif args.command == "rebuild":
         count = build_private_site(
