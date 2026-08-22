@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 from qrdocs.entries import Entry, load_entries
+from qrdocs.tokens import load_tokens
 
 
 def _render_markdown_basic(text: str) -> str:
@@ -152,8 +153,13 @@ def build_private_site(data_dir: Path, output_dir: Path) -> int:
 
     The new site is generated in a temporary directory first. The existing
     output is only replaced after the complete build succeeds.
+
+    Entries that already have public tokens also receive a private
+    /q/<token>/index.html path so the same QR URL can resolve to the rich
+    private page when accessed through the home-network origin.
     """
     entries = load_entries(data_dir)
+    tokens = load_tokens(data_dir)
 
     output_dir = output_dir.resolve()
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -169,11 +175,57 @@ def build_private_site(data_dir: Path, output_dir: Path) -> int:
 
     try:
         for entry in entries:
+            rendered_page = _render_entry(entry)
+
             destination = temp_dir / f"{entry.path.stem}.html"
             destination.write_text(
-                _render_entry(entry),
+                rendered_page,
                 encoding="utf-8",
             )
+
+            if entry.asset_id:
+                token = tokens.get(entry.asset_id.upper())
+
+                if token:
+                    token_dir = temp_dir / "q" / token
+                    token_dir.mkdir(parents=True, exist_ok=True)
+
+                    (token_dir / "index.html").write_text(
+                        rendered_page,
+                        encoding="utf-8",
+                    )
+
+                    images_dir = data_dir / "images"
+
+                    if images_dir.exists():
+                        matching_images = [
+                            path
+                            for path in images_dir.iterdir()
+                            if path.is_file()
+                            and path.stem.casefold()
+                            == entry.asset_id.casefold()
+                            and path.suffix.casefold()
+                            in {
+                                ".jpg",
+                                ".jpeg",
+                                ".png",
+                                ".webp",
+                                ".gif",
+                            }
+                        ]
+
+                        if matching_images:
+                            token_images_dir = token_dir / "images"
+                            token_images_dir.mkdir(
+                                parents=True,
+                                exist_ok=True,
+                            )
+
+                            for image_path in matching_images:
+                                shutil.copy2(
+                                    image_path,
+                                    token_images_dir / image_path.name,
+                                )
 
         (temp_dir / "index.html").write_text(
             _render_index(entries),
