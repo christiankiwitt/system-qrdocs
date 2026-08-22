@@ -3,18 +3,24 @@ import os
 import shlex
 import subprocess
 from pathlib import Path
+
+from qrdocs.build import build_private_site
+from qrdocs.config import (
+    DEFAULT_CONFIG_PATH,
+    get_default_printer,
+    get_public_base_url,
+    load_config,
+)
+from qrdocs.entries import load_entries, search_entries
+from qrdocs.labels import (
+    generate_batch_label_pdf,
+    generate_label_pdf,
+)
 from qrdocs.public import (
     build_public_asset,
     public_source_path,
     public_url_path,
 )
-from qrdocs.entries import load_entries, search_entries
-from qrdocs.build import build_private_site
-from qrdocs.labels import (
-    generate_batch_label_pdf,
-    generate_label_pdf,
-)
-from qrdocs.config import DEFAULT_CONFIG_PATH, get_public_base_url, load_config
 
 
 DEFAULT_DATA_DIR = Path("/var/lib/system-qrdocs")
@@ -33,6 +39,20 @@ def print_entry(entry):
 def open_in_editor(path: Path) -> None:
     editor = os.environ.get("EDITOR", "nano")
     command = shlex.split(editor) + [str(path)]
+    subprocess.run(command, check=True)
+
+
+def send_to_printer(
+    pdf_path: Path,
+    printer: str | None = None,
+) -> None:
+    command = ["lp"]
+
+    if printer:
+        command.extend(["-d", printer])
+
+    command.append(str(pdf_path))
+
     subprocess.run(command, check=True)
 
 
@@ -82,6 +102,7 @@ def create_entry(
     output_path.write_text(text, encoding="utf-8")
     return output_path
 
+
 def confirm(prompt: str, default: bool = False) -> bool:
     suffix = " [Y/n]: " if default else " [y/N]: "
 
@@ -98,6 +119,7 @@ def confirm(prompt: str, default: bool = False) -> bool:
             return False
 
         print("Please answer y or n.")
+
 
 def create_public_source(
     data_dir: Path,
@@ -122,6 +144,7 @@ def create_public_source(
 
     path.write_text(text, encoding="utf-8")
     return path
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -186,9 +209,9 @@ def main():
         help="Generate a printable QR label PDF",
     )
     label_parser.add_argument(
-    "asset_ids",
-    nargs="+",
-    help="One or more Asset IDs to generate labels for",
+        "asset_ids",
+        nargs="+",
+        help="One or more Asset IDs to generate labels for",
     )
     label_parser.add_argument(
         "--url",
@@ -231,9 +254,25 @@ def main():
         help="One or more search terms",
     )
 
+    print_parser = subparsers.add_parser(
+        "print",
+        help="Print a PDF through CUPS",
+    )
+    print_parser.add_argument(
+        "pdf",
+        type=Path,
+        help="PDF file to print",
+    )
+    print_parser.add_argument(
+        "--printer",
+        help="CUPS printer queue override",
+    )
+
     args = parser.parse_args()
+
     config = load_config(DEFAULT_CONFIG_PATH)
     public_base_url = get_public_base_url(config)
+    default_printer = get_default_printer(config)
 
     if args.command == "new":
         try:
@@ -399,6 +438,32 @@ def main():
         for entry in matches:
             print_entry(entry)
             print()
+
+    elif args.command == "print":
+        pdf_path = args.pdf.expanduser()
+
+        if not pdf_path.exists():
+            parser.error(f"PDF file not found: {pdf_path}")
+
+        if not pdf_path.is_file():
+            parser.error(f"Not a file: {pdf_path}")
+
+        printer = args.printer or default_printer
+
+        try:
+            send_to_printer(
+                pdf_path=pdf_path,
+                printer=printer,
+            )
+        except subprocess.CalledProcessError as exc:
+            parser.error(f"Printing failed: {exc}")
+
+        if printer:
+            print(f"Sent to printer: {printer}")
+        else:
+            print("Sent to system default printer.")
+
+        print(f"File: {pdf_path}")
 
     else:
         parser.print_help()

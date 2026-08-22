@@ -21,3 +21,13 @@ def get_public_base_url(config: dict) -> str | None:
         return None
 
     return str(base_url).rstrip("/")
+
+
+def get_default_printer(config: dict) -> str | None:
+    printing = config.get("printing", {})
+    printer = printing.get("default_printer")
+
+    if not printer:
+        return None
+
+    return str(printer)
