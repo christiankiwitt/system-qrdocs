@@ -10,7 +10,10 @@ from qrdocs.public import (
 )
 from qrdocs.entries import load_entries, search_entries
 from qrdocs.build import build_private_site
-from qrdocs.labels import generate_label_pdf
+from qrdocs.labels import (
+    generate_batch_label_pdf,
+    generate_label_pdf,
+)
 from qrdocs.config import DEFAULT_CONFIG_PATH, get_public_base_url, load_config
 
 
@@ -183,8 +186,9 @@ def main():
         help="Generate a printable QR label PDF",
     )
     label_parser.add_argument(
-        "asset_id",
-        help="Asset ID to generate a label for",
+    "asset_ids",
+    nargs="+",
+    help="One or more Asset IDs to generate labels for",
     )
     label_parser.add_argument(
         "--url",
@@ -287,30 +291,66 @@ def main():
                 open_in_editor(public_path)
 
     elif args.command == "label":
-        entry = find_entry(args.data_dir, args.asset_id)
+        selected_entries = []
 
-        if entry is None:
-            parser.error(f"Asset ID not found: {args.asset_id}")
+        for asset_id in args.asset_ids:
+            entry = find_entry(args.data_dir, asset_id)
 
-        url = args.url
+            if entry is None:
+                parser.error(f"Asset ID not found: {asset_id}")
 
-        if not url:
-            if not public_base_url:
-                parser.error(
-                    "No URL supplied and no public.base_url configured."
+            selected_entries.append(entry)
+
+        labels = []
+
+        for entry in selected_entries:
+            if args.url:
+                if len(selected_entries) > 1:
+                    parser.error(
+                        "--url can only be used when generating one label."
+                    )
+
+                url = args.url
+            else:
+                if not public_base_url:
+                    parser.error(
+                        "No URL supplied and no public.base_url configured."
+                    )
+
+                url = (
+                    f"{public_base_url}"
+                    f"{public_url_path(args.data_dir, entry.asset_id)}"
                 )
 
-            url = f"{public_base_url}{public_url_path(args.data_dir, args.asset_id)}"
+            labels.append(
+                (
+                    entry.asset_id,
+                    entry.title or "(untitled)",
+                    url,
+                )
+            )
 
-        path = generate_label_pdf(
-            asset_id=entry.asset_id,
-            title=entry.title or "(untitled)",
-            url=url,
-            output_path=args.output,
-        )
+        if len(labels) == 1:
+            asset_id, title, url = labels[0]
+
+            path = generate_label_pdf(
+                asset_id=asset_id,
+                title=title,
+                url=url,
+                output_path=args.output,
+            )
+        else:
+            path = generate_batch_label_pdf(
+                labels=labels,
+                output_path=args.output,
+            )
 
         print(f"Created: {path}")
-        print(f"QR URL: {url}")
+
+        if len(labels) == 1:
+            print(f"QR URL: {labels[0][2]}")
+        else:
+            print(f"Labels: {len(labels)}")
 
     elif args.command == "public":
         try:
