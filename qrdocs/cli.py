@@ -249,9 +249,15 @@ def main():
         help="Search documentation entries",
     )
     search_parser.add_argument(
-        "terms",
-        nargs="+",
-        help="One or more search terms",
+    "terms",
+    nargs="+",
+    help="One or more search terms",
+    )
+
+    search_parser.add_argument(
+        "--loose",
+        action="store_true",
+        help="Ignore punctuation and special characters while searching",
     )
 
     print_parser = subparsers.add_parser(
@@ -429,7 +435,11 @@ def main():
 
     elif args.command == "search":
         entries = load_entries(args.data_dir)
-        matches = search_entries(entries, args.terms)
+        matches = search_entries(
+            entries,
+            args.terms,
+            loose=args.loose,
+        )
 
         if not matches:
             print("No matches found.")

@@ -78,13 +78,33 @@ def load_entries(data_dir: Path) -> list[Entry]:
     return entries
 
 
-def search_entries(entries: list[Entry], terms: list[str]) -> list[Entry]:
-    normalized_terms = [term.casefold() for term in terms]
+def search_entries(
+    entries: list[Entry],
+    terms: list[str],
+    *,
+    loose: bool = False,
+) -> list[Entry]:
+    def normalize(value: str) -> str:
+        value = value.casefold()
+
+        if not loose:
+            return value
+
+        return "".join(
+            character
+            for character in value
+            if character.isalnum() or character.isspace()
+        )
+
+    normalized_terms = [
+        normalize(term)
+        for term in terms
+    ]
 
     matches = []
 
     for entry in entries:
-        haystack = entry.text.casefold()
+        haystack = normalize(entry.text)
 
         if all(term in haystack for term in normalized_terms):
             matches.append(entry)
