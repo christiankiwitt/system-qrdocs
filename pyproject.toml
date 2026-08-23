@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "system-qrdocs"
-version = "0.1.0"
+name = "qrdocs"
+version = "1.0.0"
 description = "Self-hosted QR-based asset documentation system"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,3 +23,6 @@ qrdocs = "qrdocs.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["qrdocs*"]
+
+[tool.setuptools.package-data]
+qrdocs = ["templates/*.md"]
