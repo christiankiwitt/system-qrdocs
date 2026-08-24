@@ -1,0 +1,13 @@
+[public]
+# Base URL used when generating public QR links.
+# Example:
+# base_url = "https://qr.example.com"
+base_url = ""
+
+[printing]
+# Optional CUPS printer queue used by `qrdocs print`
+# when --printer is not specified.
+#
+# Example:
+# default_printer = "Office_Printer"
+default_printer = ""
