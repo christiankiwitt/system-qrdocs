@@ -218,6 +218,17 @@ def main():
         help="Override the URL encoded in the QR code",
     )
     label_parser.add_argument(
+        "--size",
+        choices=["tiny", "small", "medium", "large"],
+        default="medium",
+        help="QR size preset: tiny=10 mm, small=25 mm, medium=35 mm, large=50 mm",
+    )
+    label_parser.add_argument(
+        "--qr-mm",
+        type=float,
+        help="Custom QR size in millimeters; overrides --size",
+    )
+    label_parser.add_argument(
         "--output",
         type=Path,
         default=Path("label.pdf"),
@@ -382,11 +393,15 @@ def main():
                 asset_id=asset_id,
                 title=title,
                 url=url,
+                qr_size=args.size,
+                qr_mm=args.qr_mm,
                 output_path=args.output,
             )
         else:
             path = generate_batch_label_pdf(
                 labels=labels,
+                qr_size=args.size,
+                qr_mm=args.qr_mm,
                 output_path=args.output,
             )
 

@@ -10,6 +10,7 @@ from reportlab.pdfgen import canvas
 
 
 QR_SIZE_PRESETS_MM = {
+    "tiny": 10,
     "small": 25,
     "medium": 35,
     "large": 50,
@@ -20,10 +21,16 @@ CELL_PADDING_MM = 5
 TEXT_AREA_MM = 17
 
 
-def make_qr_image(url: str):
+def make_qr_image(url: str, *, simple: bool = False):
+    error_correction = (
+        qrcode.constants.ERROR_CORRECT_L
+        if simple
+        else qrcode.constants.ERROR_CORRECT_H
+    )
+
     qr = qrcode.QRCode(
         version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        error_correction=error_correction,
         box_size=10,
         border=4,
     )
@@ -37,8 +44,8 @@ def make_qr_image(url: str):
     )
 
 
-def _qr_image_reader(url: str) -> ImageReader:
-    qr_image = make_qr_image(url)
+def _qr_image_reader(url: str, *, simple: bool = False) -> ImageReader:
+    qr_image = make_qr_image(url, simple=simple)
 
     qr_buffer = BytesIO()
     qr_image.save(qr_buffer, format="PNG")
@@ -106,6 +113,7 @@ def _draw_label(
     width: float,
     height: float,
     qr_mm: float,
+    simple_qr: bool = False,
 ) -> None:
     qr_points = qr_mm * mm
 
@@ -113,7 +121,7 @@ def _draw_label(
     qr_y = y + height - qr_points - (2 * mm)
 
     pdf.drawImage(
-        _qr_image_reader(url),
+        _qr_image_reader(url, simple=simple_qr),
         qr_x,
         qr_y,
         width=qr_points,
@@ -173,6 +181,7 @@ def generate_label_pdf(
 
     The human-readable URL is intentionally not printed.
     """
+    simple_qr = qr_size == "tiny" or qr_mm is not None
     qr_mm = _resolve_qr_mm(qr_size, qr_mm)
 
     output_path = Path(output_path)
@@ -203,16 +212,17 @@ def generate_label_pdf(
     y = page_height - label_height - (20 * mm)
 
     _draw_label(
-        pdf=pdf,
-        asset_id=asset_id,
-        title=title,
-        url=url,
-        x=x,
-        y=y,
-        width=label_width,
-        height=label_height,
-        qr_mm=qr_mm,
-    )
+    pdf=pdf,
+    asset_id=asset_id,
+    title=title,
+    url=url,
+    x=x,
+    y=y,
+    width=label_width,
+    height=label_height,
+    qr_mm=qr_mm,
+    simple_qr=simple_qr,
+)
 
     pdf.showPage()
     pdf.save()
@@ -239,6 +249,7 @@ def generate_batch_label_pdf(
     if not labels:
         raise ValueError("At least one label is required.")
 
+    simple_qr = qr_size == "tiny" or qr_mm is not None
     qr_mm = _resolve_qr_mm(qr_size, qr_mm)
 
     output_path = Path(output_path)
@@ -312,6 +323,7 @@ def generate_batch_label_pdf(
             width=cell_width,
             height=cell_height,
             qr_mm=qr_mm,
+            simple_qr=simple_qr,
         )
 
     pdf.showPage()
